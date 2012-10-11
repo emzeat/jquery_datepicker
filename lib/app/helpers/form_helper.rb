@@ -5,11 +5,18 @@ module JqueryDatepicker
     
     include ActionView::Helpers::JavaScriptHelper
 
-    # Mehtod that generates datepicker input field inside a form
+    # Method that generates datepicker input field inside a form
     def datepicker(object_name, method, options = {}, timepicker = false)
       input_tag =  JqueryDatepicker::InstanceTag.new(object_name, method, self, options.delete(:object))
       dp_options, tf_options =  input_tag.split_options(options)
-      tf_options[:value] = input_tag.format_date(tf_options[:value], String.new(dp_options[:dateFormat])) if  tf_options[:value] && !tf_options[:value].empty? && dp_options.has_key?(:dateFormat)
+      
+      if tf_options[:value] && !tf_options[:value].nil? 
+        if dp_options.has_key?(:timeFormat)
+          tf_options[:value] = input_tag.format_date(tf_options[:value], String.new(dp_options[:dateFormat]), String.new(dp_options[:timeFormat]))
+        elsif dp_options.has_key?(:dateFormat)
+          tf_options[:value] = input_tag.format_date(tf_options[:value], String.new(dp_options[:dateFormat])) 
+        end
+      end
       html = input_tag.to_input_field_tag("text", tf_options)
       method = timepicker ? "datetimepicker" : "datepicker"
       html += javascript_tag("jQuery(document).ready(function(){jQuery('##{input_tag.get_name_and_id["id"]}').#{method}(#{dp_options.to_json})});")
@@ -32,8 +39,9 @@ end
 
 class JqueryDatepicker::InstanceTag < ActionView::Helpers::InstanceTag
 
-  FORMAT_REPLACEMENTES = { "yy" => "%Y", "mm" => "%m", "dd" => "%d", "d" => "%-d", "m" => "%-m", "y" => "%y", "M" => "%b"}
-  
+  DATE_FORMAT_REPLACEMENTES = { "yy" => "%Y", "mm" => "%m", "dd" => "%d", "d" => "%-d", "m" => "%-m", "y" => "%y", "M" => "%b"}  
+  TIME_FORMAT_REPLACEMENTES = { "mm" => "%M", "hh" => "%H"}
+
   # Extending ActionView::Helpers::InstanceTag module to make Rails build the name and id
   # Just returns the options before generate the HTML in order to use the same id and name (see to_input_field_tag mehtod)
   
@@ -43,7 +51,7 @@ class JqueryDatepicker::InstanceTag < ActionView::Helpers::InstanceTag
   end
   
   def available_datepicker_options
-    [:disabled, :altField, :altFormat, :appendText, :autoSize, :buttonImage, :buttonImageOnly, :buttonText, :calculateWeek, :changeMonth, :changeYear, :closeText, :constrainInput, :currentText, :dateFormat, :dayNames, :dayNamesMin, :dayNamesShort, :defaultDate, :duration, :firstDay, :gotoCurrent, :hideIfNoPrevNext, :isRTL, :maxDate, :minDate, :monthNames, :monthNamesShort, :navigationAsDateFormat, :nextText, :numberOfMonths, :prevText, :selectOtherMonths, :shortYearCutoff, :showAnim, :showButtonPanel, :showCurrentAtPos, :showMonthAfterYear, :showOn, :showOptions, :showOtherMonths, :showWeek, :stepMonths, :weekHeader, :yearRange, :yearSuffix]
+    [:disabled, :altField, :altFormat, :appendText, :autoSize, :buttonImage, :buttonImageOnly, :buttonText, :calculateWeek, :changeMonth, :changeYear, :closeText, :constrainInput, :currentText, :dateFormat, :timeFormat, :dayNames, :dayNamesMin, :dayNamesShort, :defaultDate, :duration, :firstDay, :gotoCurrent, :hideIfNoPrevNext, :isRTL, :maxDate, :minDate, :monthNames, :monthNamesShort, :navigationAsDateFormat, :nextText, :numberOfMonths, :prevText, :selectOtherMonths, :shortYearCutoff, :showAnim, :showButtonPanel, :showCurrentAtPos, :showMonthAfterYear, :showOn, :showOptions, :showOtherMonths, :showWeek, :stepMonths, :weekHeader, :yearRange, :yearSuffix]
   end
   
   def split_options(options)
@@ -51,17 +59,25 @@ class JqueryDatepicker::InstanceTag < ActionView::Helpers::InstanceTag
     return options, tf_options
   end
   
-  def format_date(tb_formatted, format)
-    new_format = translate_format(format)
-    Date.parse(tb_formatted).strftime(new_format)
+  def format_date(dateTime, format, time=nil)
+    if (time.nil?)
+      new_format = translate_date_format(format)
+    else
+      new_format = translate_date_format(format) + " " + translate_time_format(time)
+    end
+    dateTime.strftime(new_format)
   end
 
   # Method that translates the datepicker date formats, defined in (http://docs.jquery.com/UI/Datepicker/formatDate)
   # to the ruby standard format (http://www.ruby-doc.org/core-1.9.3/Time.html#method-i-strftime).
   # This gem is not going to support all the options, just the most used.
   
-  def translate_format(format)
-    format.gsub!(/#{FORMAT_REPLACEMENTES.keys.join("|")}/) { |match| FORMAT_REPLACEMENTES[match] }
+  def translate_date_format(format)
+    format.gsub!(/#{DATE_FORMAT_REPLACEMENTES.keys.join("|")}/) { |match| DATE_FORMAT_REPLACEMENTES[match] }
+  end
+
+  def translate_time_format(format)
+    format.gsub!(/#{TIME_FORMAT_REPLACEMENTES.keys.join("|")}/) { |match| TIME_FORMAT_REPLACEMENTES[match] }
   end
 
 end
